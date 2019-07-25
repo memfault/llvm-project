@@ -329,6 +329,8 @@ std::string getMainExecutableImpl(const char *argv0, void *MainAddr) {
   char link_path[PATH_MAX];
   if (realpath(DLInfo.dli_fname, link_path))
     return link_path;
+#elif __EMSCRIPTEN__
+  return "/program.wasm";
 #else
 #error GetMainExecutable is not implemented on this host yet.
 #endif
@@ -405,6 +407,10 @@ std::error_code set_current_path(const Twine &path) {
 
 std::error_code create_directory(const Twine &path, bool IgnoreExisting,
                                  perms Perms) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  return std::error_code(-1, std::generic_category());
+#else
   SmallString<128> path_storage;
   StringRef p = path.toNullTerminatedStringRef(path_storage);
 
@@ -414,6 +420,7 @@ std::error_code create_directory(const Twine &path, bool IgnoreExisting,
   }
 
   return std::error_code();
+#endif
 }
 
 // Note that we are using symbolic link because hard links are not supported by
@@ -445,6 +452,10 @@ std::error_code create_hard_link(const Twine &to, const Twine &from) {
 }
 
 std::error_code remove(const Twine &path, bool IgnoreNonExisting) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  return std::error_code(-1, std::generic_category());
+#else
   SmallString<128> path_storage;
   StringRef p = path.toNullTerminatedStringRef(path_storage);
 
@@ -469,6 +480,7 @@ std::error_code remove(const Twine &path, bool IgnoreNonExisting) {
   }
 
   return std::error_code();
+#endif
 }
 
 static bool is_local_impl(struct STATVFS &Vfs) {
@@ -550,6 +562,9 @@ static bool is_local_impl(struct STATVFS &Vfs) {
   // The file system can have an arbitrary structure on z/OS; must go with the
   // conservative answer.
   return false;
+#elif defined(__EMSCRIPTEN__)
+  assert(0);
+  return false;
 #else
   return !!(STATVFS_F_FLAG(Vfs) & MNT_LOCAL);
 #endif
@@ -595,6 +610,7 @@ std::error_code resize_file(int FD, uint64_t Size) {
   return std::error_code();
 }
 
+#ifndef __EMSCRIPTEN__
 static int convertAccessMode(AccessMode Mode) {
   switch (Mode) {
   case AccessMode::Exist:
@@ -606,8 +622,13 @@ static int convertAccessMode(AccessMode Mode) {
   }
   llvm_unreachable("invalid enum");
 }
+#endif
 
 std::error_code access(const Twine &Path, AccessMode Mode) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  return std::error_code(-1, std::generic_category());
+#else
   SmallString<128> PathStorage;
   StringRef P = Path.toNullTerminatedStringRef(PathStorage);
 
@@ -624,6 +645,7 @@ std::error_code access(const Twine &Path, AccessMode Mode) {
   }
 
   return std::error_code();
+#endif
 }
 
 bool can_execute(const Twine &Path) {
@@ -700,6 +722,7 @@ void expand_tilde(const Twine &path, SmallVectorImpl<char> &dest) {
   expandTildeExpr(dest);
 }
 
+#ifndef __EMSCRIPTEN__
 static file_type typeForMode(mode_t Mode) {
   if (S_ISDIR(Mode))
     return file_type::directory_file;
@@ -717,7 +740,9 @@ static file_type typeForMode(mode_t Mode) {
     return file_type::symlink_file;
   return file_type::type_unknown;
 }
+#endif
 
+#ifndef __EMSCRIPTEN__
 static std::error_code fillStatus(int StatRet, const struct stat &Status,
                                   file_status &Result) {
   if (StatRet != 0) {
@@ -748,20 +773,33 @@ static std::error_code fillStatus(int StatRet, const struct stat &Status,
 
   return std::error_code();
 }
+#endif
 
 std::error_code status(const Twine &Path, file_status &Result, bool Follow) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  Result = file_status(file_type::status_error);
+  return std::error_code(-1, std::generic_category());
+#else
   SmallString<128> PathStorage;
   StringRef P = Path.toNullTerminatedStringRef(PathStorage);
 
   struct stat Status;
   int StatRet = (Follow ? ::stat : ::lstat)(P.begin(), &Status);
   return fillStatus(StatRet, Status, Result);
+#endif
 }
 
 std::error_code status(int FD, file_status &Result) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  Result = file_status(file_type::status_error);
+  return std::error_code(-1, std::generic_category());
+#else
   struct stat Status;
   int StatRet = ::fstat(FD, &Status);
   return fillStatus(StatRet, Status, Result);
+#endif
 }
 
 unsigned getUmask() {
@@ -773,12 +811,17 @@ unsigned getUmask() {
 }
 
 std::error_code setPermissions(const Twine &Path, perms Permissions) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  return std::error_code(-1, std::generic_category());
+#else
   SmallString<128> PathStorage;
   StringRef P = Path.toNullTerminatedStringRef(PathStorage);
 
   if (::chmod(P.begin(), Permissions))
     return std::error_code(errno, std::generic_category());
   return std::error_code();
+#endif
 }
 
 std::error_code setPermissions(int FD, perms Permissions) {
@@ -817,13 +860,21 @@ std::error_code setLastAccessAndModificationTime(int FD, TimePoint<> AccessTime,
     return std::error_code(errno, std::generic_category());
   return std::error_code();
 #else
-#warning Missing futimes() and futimens()
+#ifdef __EMSCRIPTEN__
+  assert(0);
+#else
+#  warning Missing futimes() and futimens()
+#endif
   return make_error_code(errc::function_not_supported);
 #endif
 }
 
 std::error_code mapped_file_region::init(int FD, uint64_t Offset,
                                          mapmode Mode) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  return std::error_code(-1, std::generic_category());
+#else
   assert(Size != 0);
 
   int flags = (Mode == readwrite) ? MAP_SHARED : MAP_PRIVATE;
@@ -855,20 +906,28 @@ std::error_code mapped_file_region::init(int FD, uint64_t Offset,
   if (Mapping == MAP_FAILED)
     return std::error_code(errno, std::generic_category());
   return std::error_code();
+#endif
 }
 
 mapped_file_region::mapped_file_region(int fd, mapmode mode, size_t length,
                                        uint64_t offset, std::error_code &ec)
     : Size(length), Mode(mode) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+#else
   (void)Mode;
   ec = init(fd, offset, mode);
   if (ec)
     copyFrom(mapped_file_region());
+    Mapping = nullptr;
+#endif
 }
 
 void mapped_file_region::unmapImpl() {
+#ifndef __EMSCRIPTEN__
   if (Mapping)
     ::munmap(Mapping, Size);
+#endif
 }
 
 void mapped_file_region::dontNeedImpl() {
@@ -964,6 +1023,7 @@ static bool hasProcSelfFD() {
 }
 #endif
 
+#ifndef __EMSCRIPTEN__
 static int nativeOpenFlags(CreationDisposition Disp, OpenFlags Flags,
                            FileAccess Access) {
   int Result = 0;
@@ -1003,13 +1063,17 @@ static int nativeOpenFlags(CreationDisposition Disp, OpenFlags Flags,
   if (!(Flags & OF_ChildInherit))
     Result |= O_CLOEXEC;
 #endif
-
   return Result;
 }
+#endif
 
 std::error_code openFile(const Twine &Name, int &ResultFD,
                          CreationDisposition Disp, FileAccess Access,
                          OpenFlags Flags, unsigned Mode) {
+#ifdef __EMSCRIPTEN__
+  assert(0);
+  return std::error_code(-1, std::generic_category());
+#else
   int OpenFlags = nativeOpenFlags(Disp, Flags, Access);
 
   SmallString<128> Storage;
@@ -1109,6 +1173,7 @@ std::error_code openFile(const Twine &Name, int &ResultFD,
 #endif
 
   return std::error_code();
+#endif
 }
 
 Expected<int> openNativeFile(const Twine &Name, CreationDisposition Disp,

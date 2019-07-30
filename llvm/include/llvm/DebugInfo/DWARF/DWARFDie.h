@@ -40,10 +40,13 @@ class raw_ostream;
 /// also simplifies the attribute extraction calls by not having to specify the
 /// DWARFUnit for each call.
 class DWARFDie {
+  // [MT] Made the internal members public, so we can poke in the values
+  // when deserializing from JS land:
+public:
   DWARFUnit *U = nullptr;
   const DWARFDebugInfoEntry *Die = nullptr;
 
-public:
+//public:
   DWARFDie() = default;
   DWARFDie(DWARFUnit *Unit, const DWARFDebugInfoEntry *D) : U(Unit), Die(D) {}
 

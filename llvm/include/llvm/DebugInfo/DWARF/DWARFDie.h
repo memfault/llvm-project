@@ -133,6 +133,8 @@ public:
   /// Convenience zero-argument overload for debugging.
   LLVM_DUMP_METHOD void dump() const;
 
+  void dumpTypeName(raw_ostream &OS) const;
+
   /// Extract the specified attribute from this DIE.
   ///
   /// Extract an attribute value from this DIE only. This call doesn't look

@@ -632,6 +632,10 @@ void DWARFDie::dump(raw_ostream &OS, unsigned Indent,
 
 LLVM_DUMP_METHOD void DWARFDie::dump() const { dump(llvm::errs(), 0); }
 
+void DWARFDie::dumpTypeName(raw_ostream &OS) const {
+  ::dumpTypeName(OS, *this);
+}
+
 DWARFDie DWARFDie::getParent() const {
   if (isValid())
     return U->getParent(Die);

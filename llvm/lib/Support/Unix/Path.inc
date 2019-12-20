@@ -105,6 +105,7 @@ const file_t kInvalidFile = -1;
 static int
 test_dir(char ret[PATH_MAX], const char *dir, const char *bin)
 {
+#ifndef __EMSCRIPTEN__
   struct stat sb;
   char fullpath[PATH_MAX];
 
@@ -113,7 +114,7 @@ test_dir(char ret[PATH_MAX], const char *dir, const char *bin)
     return 1;
   if (stat(fullpath, &sb) != 0)
     return 1;
-
+#endif
   return 0;
 }
 
@@ -159,7 +160,9 @@ getprogpath(char ret[PATH_MAX], const char *bin)
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
 std::string getMainExecutable(const char *argv0, void *MainAddr) {
-#if defined(__APPLE__)
+#if __EMSCRIPTEN__
+  return "/program.wasm";
+#elif defined(__APPLE__)
   // On OS X the executable path is saved to the stack by dyld. Reading it
   // from there is much faster than calling dladdr, especially for large
   // binaries with symbols.
@@ -222,8 +225,6 @@ std::string getMainExecutable(const char *argv0, void *MainAddr) {
   char link_path[MAXPATHLEN];
   if (realpath(DLInfo.dli_fname, link_path))
     return link_path;
-#elif __EMSCRIPTEN__
-  return "/program.wasm";
 #else
 #error GetMainExecutable is not implemented on this host yet.
 #endif
@@ -809,7 +810,7 @@ std::error_code detail::directory_iterator_destruct(detail::DirIterState &it) {
 static file_type direntType(dirent* Entry) {
   // Most platforms provide the file type in the dirent: Linux/BSD/Mac.
   // The DTTOIF macro lets us reuse our status -> type conversion.
-#if defined(_DIRENT_HAVE_D_TYPE) && defined(DTTOIF)
+#if defined(_DIRENT_HAVE_D_TYPE) && defined(DTTOIF) && !defined(__EMSCRIPTEN__)
   return typeForMode(DTTOIF(Entry->d_type));
 #else
   // Other platforms such as Solaris require a stat() to get the type.

@@ -48,6 +48,10 @@ public:
   // it in memory assuming there were no conflicts.
   uint64_t getModulePreferredBase() const override;
 
+  inline DIContext* getDebugInfoContext() {
+    return DebugInfoContext.get();
+  }
+
 private:
   bool shouldOverrideWithSymbolTable(FunctionNameKind FNKind,
                                      bool UseSymbolTable) const;

@@ -155,6 +155,11 @@ public:
              TypeID == ID_XCOFF32 || TypeID == ID_XCOFF64);
   }
 
+  bool is64Bit() const {
+      return (TypeID == ID_ELF64L || TypeID == ID_ELF64B ||
+              TypeID == ID_MachO64L || TypeID == ID_MachO64B);
+  }
+
   bool isWinRes() const { return TypeID == ID_WinRes; }
 
   Triple::ObjectFormatType getTripleObjectFormat() const {

@@ -804,11 +804,15 @@ std::error_code status(int FD, file_status &Result) {
 }
 
 unsigned getUmask() {
+#ifdef __EMSCRIPTEN__
+  return 0777;
+#else
   // Chose arbitary new mask and reset the umask to the old mask.
   // umask(2) never fails so ignore the return of the second call.
   unsigned Mask = ::umask(0);
   (void)::umask(Mask);
   return Mask;
+#endif
 }
 
 std::error_code setPermissions(const Twine &Path, perms Permissions) {
@@ -826,9 +830,13 @@ std::error_code setPermissions(const Twine &Path, perms Permissions) {
 }
 
 std::error_code setPermissions(int FD, perms Permissions) {
+#ifdef __EMSCRIPTEN__
+  return std::error_code(EPERM, std::generic_category());
+#else
   if (::fchmod(FD, Permissions))
     return std::error_code(errno, std::generic_category());
   return std::error_code();
+#endif
 }
 
 std::error_code setLastAccessAndModificationTime(int FD, TimePoint<> AccessTime,
@@ -933,6 +941,7 @@ void mapped_file_region::unmapImpl() {
 
 void mapped_file_region::dontNeedImpl() {
   assert(Mode == mapped_file_region::readonly);
+#ifndef __EMSCRIPTEN__
   if (!Mapping)
     return;
 #if defined(__MVS__) || defined(_AIX)
@@ -941,6 +950,7 @@ void mapped_file_region::dontNeedImpl() {
   ::posix_madvise(Mapping, Size, POSIX_MADV_DONTNEED);
 #else
   ::madvise(Mapping, Size, MADV_DONTNEED);
+#endif
 #endif
 }
 

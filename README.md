@@ -1,3 +1,9 @@
+# Memfault
+
+The [`js-debuginfo` project](https://github.com/memfault/js-debuginfo) uses this 
+as a submodule. The `js-debuginfo` project is what powers the Coredump UI.
+
+
 # The LLVM Compiler Infrastructure
 
 This directory and its sub-directories contain the source code for LLVM,
